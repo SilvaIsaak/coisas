@@ -1,0 +1,1885 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crypto Radar — Novas Moedas & Potencial de Valorização</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Syne', 'sans-serif'],
+                        mono: ['Space Mono', 'monospace'],
+                    },
+                    colors: {
+                        'bg':     '#050810',
+                        'card':   '#0c1120',
+                        'card2':  '#111827',
+                        'accent': '#00f5c4',
+                        'accd':   '#6366f1',
+                        'grn':    '#22d3a0',
+                        'red':    '#f43f5e',
+                        'ylw':    '#fbbf24',
+                        'muted':  '#64748b',
+                        'border': '#1e2d40',
+                    },
+                    animation: {
+                        'scroll': 'scroll 50s linear infinite',
+                        'glow': 'glow 3s ease-in-out infinite',
+                        'fadeup': 'fadeup 0.5s ease forwards',
+                    },
+                    keyframes: {
+                        scroll: { '0%': { transform: 'translateX(0)' }, '100%': { transform: 'translateX(-50%)' } },
+                        glow: { '0%,100%': { opacity: '0.6' }, '50%': { opacity: '1' } },
+                        fadeup: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-bg text-slate-200 font-sans min-h-screen overflow-x-hidden; }
+            ::-webkit-scrollbar { width: 4px; height: 4px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+        }
+        @layer components {
+            .card {
+                @apply bg-card border border-border rounded-2xl p-5 transition-all duration-300
+                       hover:border-accent/30 hover:shadow-[0_0_30px_-10px_rgba(0,245,196,0.2)] relative overflow-hidden;
+            }
+            .btn-pill {
+                @apply px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-border
+                       bg-card text-muted transition-all duration-200 hover:border-accent/40 hover:text-white cursor-pointer;
+            }
+            .btn-pill.active { @apply border-accent text-accent bg-accent/10 shadow-[0_0_12px_rgba(0,245,196,0.25)]; }
+            .badge { @apply px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border; }
+            .score-bar { @apply w-full h-1 bg-bg rounded-full overflow-hidden; }
+            .score-fill { @apply h-full rounded-full bg-gradient-to-r from-accent to-accd transition-all duration-700; }
+            .stat-pill { @apply flex flex-col items-center px-4 py-2 bg-card/60 border border-border rounded-xl cursor-help transition-all hover:border-accent/20; }
+            .tab-btn { @apply flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200; }
+            .tab-btn.active { @apply bg-accent text-bg shadow-[0_0_20px_rgba(0,245,196,0.3)]; }
+            .tab-btn:not(.active) { @apply text-muted border border-border bg-card hover:text-white hover:border-accent/30; }
+            .input-dark {
+                @apply bg-bg border border-border text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-accent
+                       transition-all placeholder:text-muted w-full;
+            }
+            .neon-dot { @apply w-2 h-2 rounded-full bg-accent shadow-[0_0_8px_rgba(0,245,196,0.8)] animate-pulse; }
+            /* Mobile-friendly improvements */
+            @media (max-width: 768px) {
+                .stat-pill { @apply px-2 py-1 gap-1 border-none bg-transparent hover:bg-transparent; }
+                .stat-pill span.text-xs, .stat-pill span.text-sm { @apply text-[10px]; }
+                .stat-pill span.text-[8px] { @apply hidden; }
+                header .max-w-[1700px] { @apply justify-center; }
+            }
+            @media (max-width: 640px) {
+                .stat-pill { @apply p-1; }
+                .tab-btn { @apply px-3 py-2 text-[10px]; }
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<!-- ── BG GRID ── -->
+<div class="fixed inset-0 pointer-events-none z-0 opacity-[0.03]"
+     style="background-image: linear-gradient(#00f5c4 1px,transparent 1px),linear-gradient(90deg,#00f5c4 1px,transparent 1px);background-size:60px 60px;"></div>
+
+<!-- ── SECURITY WARNING: API Key salva apenas na memória local da sessão ── -->
+<!-- ⚠️ MELHORADO: A API Key agora fica apenas em memória (sessionStorage temporário), não em localStorage -->
+
+<!-- ── DEMO BANNER ── -->
+<div id="demoBanner" class="relative z-50 flex items-center justify-center gap-3 py-2.5 px-4 text-center border-b border-ylw/20 bg-ylw/5">
+    <div class="w-1.5 h-1.5 rounded-full bg-ylw animate-pulse"></div>
+    <span class="text-[11px] font-bold text-ylw/80 uppercase tracking-widest">Dados de demonstração — não utilize para decisões de trade</span>
+    <button onclick="document.getElementById('demoBanner').remove()" class="ml-4 text-ylw/50 hover:text-ylw transition-colors">
+        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+    </button>
+</div>
+
+<!-- ── HEADER ── -->
+<header class="sticky top-0 z-40 bg-bg/80 backdrop-blur-xl border-b border-border">
+    <div class="max-w-[1700px] mx-auto px-5 py-3 flex flex-wrap items-center justify-between gap-4">
+
+        <!-- Logo -->
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-accent/10 border border-accent/30 flex items-center justify-center">
+                <i data-lucide="radar" class="w-5 h-5 text-accent"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-extrabold text-accent tracking-tight leading-none">Crypto<span class="text-white">Radar</span></h1>
+                <p class="text-[9px] text-muted uppercase tracking-widest">IA Powered Analysis</p>
+            </div>
+        </div>
+
+        <!-- Metrics (agora reais via CoinGecko) -->
+        <div class="flex items-center gap-1 md:gap-2 flex-wrap">
+            <div class="stat-pill" title="Market Cap Global 24h">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs md:text-sm font-bold font-mono" id="header-mktcap">—</span>
+                    <span class="text-[9px] font-bold" id="header-mktcap-delta">—</span>
+                </div>
+                <span class="text-[8px] text-muted uppercase tracking-widest mt-0.5">Mkt Cap</span>
+            </div>
+            <div class="stat-pill" title="Volume 24H">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs md:text-sm font-bold font-mono" id="header-volume">—</span>
+                </div>
+                <span class="text-[8px] text-muted uppercase tracking-widest mt-0.5">Vol 24H</span>
+            </div>
+            <div class="stat-pill" title="Dominância Bitcoin">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs md:text-sm font-bold font-mono text-ylw" id="header-btc-dom">—</span>
+                </div>
+                <span class="text-[8px] text-muted uppercase tracking-widest mt-0.5">BTC Dom</span>
+            </div>
+            <div class="stat-pill" title="Preço BTC">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs md:text-sm font-bold font-mono text-grn" id="header-btc-price">—</span>
+                    <span class="text-[9px] font-bold" id="header-btc-price-delta">—</span>
+                </div>
+                <span class="text-[8px] text-muted uppercase tracking-widest mt-0.5">BTC/USD</span>
+            </div>
+            <!-- NOVO: Índice Medo & Ganância via alternative.me (100% grátis) -->
+            <div class="stat-pill" title="Índice de Medo e Ganância">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs md:text-sm font-bold font-mono" id="header-fear-greed">—</span>
+                </div>
+                <span class="text-[8px] text-muted uppercase tracking-widest mt-0.5" id="header-fear-label">Medo/Ganância</span>
+            </div>
+        </div>
+
+        <!-- Live + API -->
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-grn/5 border border-grn/20 rounded-full">
+                <span class="neon-dot" style="background:#22d3a0; box-shadow:0 0 8px rgba(34,211,160,.8)"></span>
+                <span class="text-[10px] font-bold text-grn font-mono uppercase" id="currentDate">AO VIVO</span>
+            </div>
+            <button onclick="App.openApiKeyModal()"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-accd/30 bg-accd/5 text-accd hover:border-accd/60 transition-all">
+                <i data-lucide="key" class="w-3 h-3"></i>
+                API Key
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- ── TICKER ── -->
+<div class="bg-card/50 border-b border-border overflow-hidden py-2 relative z-30">
+    <div class="flex animate-scroll whitespace-nowrap gap-10" id="ticker">
+        <span class="text-muted text-xs">Carregando dados...</span>
+    </div>
+</div>
+
+<!-- ── TABS ── -->
+<nav class="max-w-[1700px] mx-auto px-5 mt-5">
+    <div class="flex gap-2 flex-wrap">
+        <button onclick="App.switchTab('monitoring')" id="tab-btn-monitoring" class="tab-btn active">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Monitoramento
+        </button>
+        <button onclick="App.switchTab('ai')" id="tab-btn-ai" class="tab-btn">
+            <i data-lucide="shield" class="w-4 h-4"></i> Spartan AI
+        </button>
+        <button onclick="App.switchTab('news')" id="tab-btn-news" class="tab-btn">
+            <i data-lucide="newspaper" class="w-4 h-4"></i> Notícias
+            <span id="news-count" class="ml-1 px-1.5 py-0.5 rounded-full bg-accent/20 text-accent text-[9px] font-bold hidden">0</span>
+        </button>
+        <button onclick="App.switchTab('stables')" id="tab-btn-stables" class="tab-btn">
+            <i data-lucide="dollar-sign" class="w-4 h-4"></i> Stablecoins
+        </button>
+        <button onclick="App.switchTab('watchlist')" id="tab-btn-watchlist" class="tab-btn">
+            <i data-lucide="heart" class="w-4 h-4"></i> Watchlist
+            <span id="watchlist-count" class="ml-1 px-1.5 py-0.5 rounded-full bg-red/20 text-red text-[9px] font-bold hidden">0</span>
+        </button>
+    </div>
+</nav>
+
+<main class="max-w-[1700px] mx-auto px-5 py-6 space-y-10 relative z-10">
+
+<!-- ══════ VIEW: MONITORING ══════ -->
+<div id="view-monitoring" class="space-y-10">
+
+    <!-- Summary Cards -->
+    <section class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4" id="summaryGrid"></section>
+
+    <!-- Hot Grid + Charts -->
+    <section class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="xl:col-span-2 space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="flame" class="w-5 h-5 text-red animate-pulse"></i>
+                    <h2 class="text-sm font-bold uppercase tracking-wider">Linha de Frente — IA Score</h2>
+                </div>
+                <button onclick="App.exportToCSV()"
+                        class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-accent/30 text-accent hover:bg-accent hover:text-bg transition-all">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar CSV
+                </button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="hotGrid">
+                <div class="card animate-pulse flex flex-col gap-3">
+                    <div class="h-4 bg-border/50 rounded w-3/4"></div>
+                    <div class="h-6 bg-border/50 rounded w-1/2"></div>
+                    <div class="h-3 bg-border/50 rounded w-full"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOVO: Feed de Notícias via CryptoPanic (grátis) -->
+        <div class="space-y-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="newspaper" class="w-5 h-5 text-accent"></i>
+                <h2 class="text-sm font-bold uppercase tracking-wider">Notícias do Front</h2>
+                <span class="text-[9px] text-grn font-bold uppercase animate-pulse">AO VIVO</span>
+            </div>
+            <div class="card !p-4 max-h-[320px] overflow-y-auto space-y-3" id="newsFeedSidebar">
+                <div class="flex flex-col items-center gap-2 py-4">
+                    <div class="w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+                    <span class="text-xs text-muted">Carregando notícias...</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Charts -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card space-y-4">
+            <h3 class="text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                <i data-lucide="trending-up" class="w-4 h-4 text-grn"></i> Top Gainers (24H %)
+            </h3>
+            <div class="h-[260px]"><canvas id="chartGainers"></canvas></div>
+        </div>
+        <div class="card space-y-4">
+            <h3 class="text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                <i data-lucide="activity" class="w-4 h-4 text-accent"></i> Volume vs Liquidez (Top 10)
+            </h3>
+            <div class="h-[260px]"><canvas id="chartVolLiq"></canvas></div>
+        </div>
+    </section>
+
+    <!-- Table Section -->
+    <section class="space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="layout-list" class="w-5 h-5 text-accent"></i>
+                <h2 class="text-sm font-bold uppercase tracking-wider">Monitoramento em Tempo Real</h2>
+                <span id="tokenCount" class="text-[10px] text-muted font-mono">(—)</span>
+            </div>
+            <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted"></i>
+                <input type="text" placeholder="Buscar token..." class="input-dark pl-9 w-full md:w-56"
+                       id="searchInput" oninput="App.handleSearch()"/>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 p-4 bg-card/40 border border-border rounded-2xl">
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] font-bold text-muted uppercase">Rede</span>
+                <select id="filter-network" onchange="App.handleNetworkFilter(this.value)"
+                        class="bg-bg border border-border text-xs rounded-lg px-3 py-1.5 focus:border-accent outline-none">
+                    <option value="all">Todas</option>
+                    <option value="solana">Solana</option>
+                    <option value="ethereum">Ethereum</option>
+                    <option value="base">Base</option>
+                    <option value="bsc">BSC</option>
+                    <option value="arbitrum">Arbitrum</option>
+                    <option value="polygon">Polygon</option>
+                </select>
+            </div>
+            <div id="filterBar" class="flex gap-2 flex-wrap"></div>
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-bg border border-border rounded-lg">
+                <span class="text-[9px] font-bold text-muted uppercase whitespace-nowrap">Score ≥</span>
+                <input type="range" id="filter-score" min="0" max="100" value="0"
+                       oninput="App.handleScoreFilter(this.value)" class="w-20 accent-[#00f5c4]">
+                <span id="score-label" class="text-xs font-mono text-accent w-6">0</span>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+                <button onclick="App.openAlertsModal()" class="flex items-center gap-1.5 btn-pill">
+                    <i data-lucide="bell" class="w-3 h-3"></i> Alertas
+                </button>
+                <select id="sort-by" onchange="App.handleSort(this.value)"
+                        class="bg-bg border border-border text-xs rounded-lg px-3 py-1.5 focus:border-accent outline-none">
+                    <option value="score">AI Score</option>
+                    <option value="vol_n">Volume 24H</option>
+                    <option value="ch24_n">Variação 24H</option>
+                    <option value="created_at">Mais novos</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Desktop Table -->
+        <div class="card !p-0 overflow-hidden">
+            <div class="hidden sm:block overflow-x-auto">
+                <table class="w-full text-left border-collapse" id="mainTable">
+                    <thead>
+                        <tr class="bg-card2/60 border-b border-border text-[9px] font-bold text-muted uppercase tracking-widest">
+                            <th class="px-5 py-3 w-8"></th>
+                            <th class="px-5 py-3 cursor-pointer hover:text-accent" onclick="App.handleSort('name')">Token</th>
+                            <th class="px-5 py-3 cursor-pointer hover:text-accent" onclick="App.handleSort('price_n')">Preço</th>
+                            <th class="px-5 py-3 cursor-pointer hover:text-accent" onclick="App.handleSort('m15_n')">15M %</th>
+                            <th class="px-5 py-3 cursor-pointer hover:text-accent" onclick="App.handleSort('ch1_n')">1H %</th>
+                            <th class="px-5 py-3 cursor-pointer hover:text-accent hidden sm:table-cell" onclick="App.handleSort('ch24_n')">24H %</th>
+                            <th class="px-5 py-3 cursor-pointer hover:text-accent hidden lg:table-cell" onclick="App.handleSort('vol_n')">Volume</th>
+                            <th class="px-5 py-3 cursor-pointer hover:text-accent hidden xl:table-cell" onclick="App.handleSort('mcap_n')">Mkt Cap</th>
+                            <th class="px-5 py-3 hidden md:table-cell" onclick="App.handleSort('created_at')">Criado</th>
+                            <th class="px-5 py-3 hidden sm:table-cell">Rede</th>
+                            <th class="px-5 py-3 cursor-pointer hover:text-accent" onclick="App.handleSort('score')">AI Score</th>
+                            <th class="px-5 py-3 text-right">Segurança</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-border/40 text-sm">
+                        <tr><td colspan="11" class="p-12 text-center text-muted text-xs">
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+                                <span>Conectando à DexScreener API...</span>
+                            </div>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Mobile Cards -->
+            <div id="mobileCards" class="sm:hidden divide-y divide-border/40"></div>
+        </div>
+    </section>
+
+    <!-- Risk + Methodology -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="card space-y-4 border-ylw/20">
+            <h3 class="text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                <i data-lucide="shield-alert" class="w-4 h-4 text-ylw"></i> Análise de Risco
+            </h3>
+            <ul class="space-y-3">
+                <li class="flex gap-3 p-3 bg-red/5 border border-red/20 rounded-xl">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-red mt-0.5 shrink-0"></i>
+                    <div>
+                        <h4 class="text-xs font-bold text-red">Liquidez Crítica</h4>
+                        <p class="text-[10px] text-muted mt-1 leading-relaxed">Tokens com menos de $50K em liquidez são vulneráveis a manipulação e Rug Pulls.</p>
+                    </div>
+                </li>
+                <li class="flex gap-3 p-3 bg-ylw/5 border border-ylw/20 rounded-xl">
+                    <i data-lucide="clock" class="w-4 h-4 text-ylw mt-0.5 shrink-0"></i>
+                    <div>
+                        <h4 class="text-xs font-bold text-ylw">Recém-Lançados</h4>
+                        <p class="text-[10px] text-muted mt-1 leading-relaxed">Projetos com menos de 24h de vida apresentam volatilidade imprevisível.</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div class="card space-y-4 border-accent/20">
+            <h3 class="text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                <i data-lucide="brain" class="w-4 h-4 text-accent"></i> Metodologia IA Score
+            </h3>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="p-3 bg-bg/50 rounded-xl border border-border text-center">
+                    <div class="text-accent font-bold text-sm">Vol/MC</div>
+                    <div class="text-[9px] text-muted uppercase mt-1">Tração Real</div>
+                </div>
+                <div class="p-3 bg-bg/50 rounded-xl border border-border text-center">
+                    <div class="text-grn font-bold text-sm">Makers</div>
+                    <div class="text-[9px] text-muted uppercase mt-1">Adoção Única</div>
+                </div>
+                <div class="p-3 bg-bg/50 rounded-xl border border-border text-center">
+                    <div class="text-accd font-bold text-sm">Momentum</div>
+                    <div class="text-[9px] text-muted uppercase mt-1">Aceleração 1H</div>
+                </div>
+                <div class="p-3 bg-bg/50 rounded-xl border border-border text-center">
+                    <div class="text-white font-bold text-sm">Multi-Src</div>
+                    <div class="text-[9px] text-muted uppercase mt-1">Verificação</div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- ══════ VIEW: NEWS ══════ -->
+<div id="view-news" class="hidden space-y-6">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+            <i data-lucide="newspaper" class="w-5 h-5 text-accent"></i>
+            <h2 class="text-sm font-bold uppercase tracking-wider">Central de Notícias — Tempo Real</h2>
+            <span class="text-[9px] text-grn font-bold uppercase animate-pulse">CryptoPanic API</span>
+        </div>
+        <div class="flex gap-2 flex-wrap" id="newsFilterBar">
+            <button onclick="App.filterNews('all')" class="btn-pill active" id="news-filter-all">Todas</button>
+            <button onclick="App.filterNews('bullish')" class="btn-pill" id="news-filter-bullish">📈 Bullish</button>
+            <button onclick="App.filterNews('bearish')" class="btn-pill" id="news-filter-bearish">📉 Bearish</button>
+            <button onclick="App.filterNews('important')" class="btn-pill" id="news-filter-important">🔥 Importantes</button>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4" id="newsGrid">
+        <div class="card animate-pulse flex flex-col gap-3 col-span-full">
+            <div class="h-4 bg-border/50 rounded w-1/3"></div>
+            <div class="h-6 bg-border/50 rounded w-full"></div>
+            <div class="h-3 bg-border/50 rounded w-2/3"></div>
+        </div>
+    </div>
+    <div class="text-center">
+        <button onclick="App.loadMoreNews()" id="loadMoreNews"
+                class="px-6 py-3 border border-border text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:border-accent/30 transition-all hidden">
+            Carregar Mais
+        </button>
+    </div>
+    <!-- Fontes -->
+    <div class="p-4 bg-card/30 border border-border rounded-xl text-center">
+        <p class="text-[9px] text-muted">Notícias via <span class="text-accent font-bold">CryptoPanic</span> (100% gratuito) · Atualiza a cada 5 minutos</p>
+    </div>
+</div>
+
+<!-- ══════ VIEW: SPARTAN AI ══════ -->
+<div id="view-ai" class="hidden space-y-6">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <!-- Chat -->
+        <div class="xl:col-span-2 space-y-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="shield-check" class="w-5 h-5 text-accent"></i>
+                <h2 class="text-sm font-bold uppercase tracking-wider">Spartan AI — Centro de Comando</h2>
+            </div>
+
+            <!-- MELHORADO: Aviso mais claro sobre a API Key -->
+            <div id="apiKeyWarning" class="hidden p-4 bg-ylw/5 border border-ylw/30 rounded-xl text-xs text-ylw flex items-center gap-3">
+                <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
+                <span>Configure sua <strong>Groq API Key</strong> para ativar o Spartan AI.
+                    A chave fica apenas na memória da sessão (fechou o browser, apagou).
+                    <button onclick="App.openApiKeyModal()" class="underline ml-1">Configurar agora</button>
+                </span>
+            </div>
+
+            <div class="card min-h-[500px] flex flex-col !p-0 border-t-2 border-t-accent/40">
+                <div id="aiChat" class="flex-1 overflow-y-auto space-y-5 p-5 max-h-[550px]">
+                    <div class="flex gap-3">
+                        <div class="w-9 h-9 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0">
+                            <i data-lucide="sword" class="w-4 h-4 text-accent"></i>
+                        </div>
+                        <div class="bg-bg/50 p-4 rounded-2xl rounded-tl-none border border-border text-sm max-w-[85%]">
+                            <p class="text-accent font-bold mb-2 uppercase text-[9px] tracking-widest">Spartan Commander v3.0</p>
+                            <p class="text-slate-300 leading-relaxed italic text-xs">
+                                "Comandante, os mercados são o nosso campo de batalha. Configure sua API Key e minha tropa de algoritmos irá escanear a blockchain em busca de oportunidades táticas. Tenho acesso a dados de mercado, notícias em tempo real e análise de segurança de contratos. Qual é a sua missão?"
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-border bg-card2/30 rounded-b-2xl">
+                    <!-- NOVO: Histórico de conversa salvo na sessão -->
+                    <div class="flex gap-3">
+                        <input type="text" id="aiInput"
+                               placeholder="Ordene uma análise, Comandante..."
+                               class="input-dark flex-1 italic text-xs"
+                               onkeydown="if(event.key==='Enter') App.askAI()">
+                        <button onclick="App.askAI()"
+                                class="w-11 h-11 rounded-xl bg-accent text-bg flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,245,196,0.3)]">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="App.clearChat()" title="Limpar conversa"
+                                class="w-11 h-11 rounded-xl border border-border text-muted flex items-center justify-center hover:border-red/40 hover:text-red transition-all">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="flex gap-2 mt-3 flex-wrap">
+                        <button onclick="App.quickPrompt('Quais são os 3 tokens com melhor AI Score agora?')" class="btn-pill text-[9px]">Top AI Score</button>
+                        <button onclick="App.quickPrompt('Analise os riscos dos tokens trending hoje')" class="btn-pill text-[9px]">Análise de Risco</button>
+                        <button onclick="App.quickPrompt('Qual rede blockchain está dominando em novos tokens?')" class="btn-pill text-[9px]">Rede Líder</button>
+                        <button onclick="App.quickPrompt('Encontre oportunidades de arbitragem nas stablecoins')" class="btn-pill text-[9px]">Stablecoins</button>
+                        <button onclick="App.quickPrompt('Resuma as notícias cripto mais importantes de hoje')" class="btn-pill text-[9px]">Notícias de hoje</button>
+                        <button onclick="App.quickPrompt('Qual é o índice de medo e ganância atual e o que isso significa?')" class="btn-pill text-[9px]">Medo & Ganância</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signals + APIs Info -->
+        <div class="space-y-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="swords" class="w-5 h-5 text-ylw"></i>
+                <h2 class="text-sm font-bold uppercase tracking-wider">Sinais Ativos</h2>
+            </div>
+            <div class="card space-y-3 border-l-2 border-l-ylw/40" id="aiSignals">
+                <p class="text-xs text-muted text-center py-4">Aguardando dados...</p>
+            </div>
+
+            <!-- NOVO: Painel de status das APIs -->
+            <div class="card border-accent/10 space-y-3">
+                <h3 class="text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                    <i data-lucide="plug" class="w-4 h-4 text-accent"></i> Status das APIs
+                </h3>
+                <div class="space-y-2" id="apiStatusPanel">
+                    <div class="flex items-center justify-between p-2 bg-bg/50 rounded-lg border border-border">
+                        <span class="text-[10px] font-bold text-white">DexScreener</span>
+                        <span class="text-[9px] text-grn font-bold" id="api-status-dex">— Verificando</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 bg-bg/50 rounded-lg border border-border">
+                        <span class="text-[10px] font-bold text-white">CoinGecko</span>
+                        <span class="text-[9px] text-grn font-bold" id="api-status-coingecko">— Verificando</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 bg-bg/50 rounded-lg border border-border">
+                        <span class="text-[10px] font-bold text-white">CryptoPanic</span>
+                        <span class="text-[9px] text-grn font-bold" id="api-status-cryptopanic">— Verificando</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 bg-bg/50 rounded-lg border border-border">
+                        <span class="text-[10px] font-bold text-white">Fear & Greed</span>
+                        <span class="text-[9px] text-grn font-bold" id="api-status-fear">— Verificando</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 bg-bg/50 rounded-lg border border-border">
+                        <span class="text-[10px] font-bold text-white">GoPlus Security</span>
+                        <span class="text-[9px] text-grn font-bold" id="api-status-goplus">— Verificando</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 bg-bg/50 rounded-lg border border-border">
+                        <span class="text-[10px] font-bold text-white">Groq AI</span>
+                        <span class="text-[9px] font-bold" id="api-status-groq">— Sem key</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-accent/10 space-y-3">
+                <h3 class="text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                    <i data-lucide="binary" class="w-4 h-4 text-accent"></i> Metodologia Spartan
+                </h3>
+                <div class="space-y-2">
+                    <div class="p-2.5 bg-bg/50 rounded-xl border border-border">
+                        <h5 class="text-[9px] text-accent font-bold uppercase mb-1">Médias Móveis (EMA)</h5>
+                        <p class="text-[9px] text-muted">EMA 9, 21 e 200 para filtrar tendências e pullbacks táticos.</p>
+                    </div>
+                    <div class="p-2.5 bg-bg/50 rounded-xl border border-border">
+                        <h5 class="text-[9px] text-grn font-bold uppercase mb-1">VWAP Institucional</h5>
+                        <p class="text-[9px] text-muted">Preço médio por volume para identificar controle de campo.</p>
+                    </div>
+                    <div class="p-2.5 bg-bg/50 rounded-xl border border-border">
+                        <h5 class="text-[9px] text-ylw font-bold uppercase mb-1">ATR & Stop Dinâmico</h5>
+                        <p class="text-[9px] text-muted">Stop Loss de 1.5x ATR para evitar liquidações por ruído.</p>
+                    </div>
+                    <div class="p-2.5 bg-bg/50 rounded-xl border border-border">
+                        <h5 class="text-[9px] text-accd font-bold uppercase mb-1">RSI Institucional</h5>
+                        <p class="text-[9px] text-muted">Níveis 40/60 para momentum e divergências de força.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════ VIEW: STABLES ══════ -->
+<div id="view-stables" class="hidden space-y-8">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+            <i data-lucide="landmark" class="w-5 h-5 text-accent"></i>
+            <h2 class="text-sm font-bold uppercase tracking-wider">Análise de Stablecoins & Paridade</h2>
+        </div>
+        <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted"></i>
+            <input type="text" placeholder="Pesquisar Stablecoin..." class="input-dark pl-9 w-full md:w-56"
+                   id="searchStablesInput" oninput="App.renderStables()"/>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 card !p-0 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-card2/60 border-b border-border text-[9px] font-bold text-muted uppercase tracking-widest">
+                            <th class="px-5 py-3">Ativo</th>
+                            <th class="px-5 py-3">Preço USD</th>
+                            <th class="px-5 py-3">Desvio (Peg)</th>
+                            <th class="px-5 py-3">Status</th>
+                            <th class="px-5 py-3 text-right">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stableTableBody" class="divide-y divide-border/40 text-sm">
+                        <tr><td colspan="5" class="p-8 text-center text-muted text-xs">Carregando stablecoins...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="space-y-4">
+            <div class="card space-y-3 border-accent/20">
+                <h3 class="text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4 text-accent"></i> Estabilidade de Paridade
+                </h3>
+                <div class="h-[200px]"><canvas id="chartStablePeg"></canvas></div>
+            </div>
+            <div class="card space-y-3 border-ylw/20">
+                <h3 class="text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                    <i data-lucide="pie-chart" class="w-4 h-4 text-ylw"></i> Dominância de Mercado
+                </h3>
+                <div class="h-[180px]"><canvas id="chartStableShare"></canvas></div>
+            </div>
+            <div class="card border-accent/10 space-y-3">
+                <h3 class="text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                    <i data-lucide="lightbulb" class="w-4 h-4 text-ylw"></i> Estratégia de Trade
+                </h3>
+                <p class="text-[10px] text-muted leading-relaxed italic">
+                    "Compre quando o preço cair abaixo de $0.998 e venda quando atingir $1.002, aproveitando desvios temporários de paridade (De-pegging)."
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════ VIEW: WATCHLIST ══════ -->
+<div id="view-watchlist" class="hidden space-y-6">
+    <div class="flex items-center gap-2">
+        <i data-lucide="heart" class="w-5 h-5 text-red"></i>
+        <h2 class="text-sm font-bold uppercase tracking-wider">Minha Watchlist</h2>
+    </div>
+    <div class="card !p-0 overflow-hidden" id="watchlistContainer">
+        <div class="p-12 text-center text-muted text-xs">Nenhum token na watchlist. Clique no ❤ em qualquer token para adicionar.</div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="pt-8 border-t border-border text-center space-y-3">
+    <div class="max-w-3xl mx-auto p-4 bg-card/40 border border-border rounded-xl space-y-2">
+        <p class="text-[10px] text-muted leading-relaxed">
+            <strong class="text-accent uppercase">APIs Gratuitas Integradas:</strong>
+            DexScreener · CoinGecko · CryptoPanic · Fear&Greed Index · GoPlus Security · Groq AI (Ativo)
+        </p>
+        <p class="text-[10px] text-muted leading-relaxed">
+            <strong class="text-red uppercase">Aviso:</strong> Investimento em criptoativos envolve risco extremo. Este dashboard é educacional e não constitui recomendação financeira.
+        </p>
+    </div>
+    <div class="text-[9px] text-muted">Crypto Radar © 2026 — Built with AI for Next-Gen Trading</div>
+</footer>
+
+</main>
+
+<!-- ══════ MODAL ══════ -->
+<div id="modalOverlay" class="fixed inset-0 z-[100] bg-bg/90 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-card border border-border w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+        <div class="p-6 space-y-5 max-h-[85vh] overflow-y-auto" id="modalContent"></div>
+    </div>
+</div>
+
+<!-- ══════ TOAST NOTIFICATIONS ══════ -->
+<div id="toastContainer" class="fixed bottom-5 right-5 z-[200] space-y-2 pointer-events-none"></div>
+
+<script>
+// ─── CONSTANTS ─────────────────────────────────────────────────────────────
+const CHAINS = {
+    solana:   { label: 'Solana',   color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+    ethereum: { label: 'Ethereum', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+    base:     { label: 'Base',     color: 'bg-sky-500/20 text-sky-400 border-sky-500/30' },
+    bsc:      { label: 'BNB',      color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+    polygon:  { label: 'Polygon',  color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
+    arbitrum: { label: 'Arbitrum', color: 'bg-blue-600/20 text-blue-300 border-blue-600/30' },
+    outro:    { label: 'Outro',    color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' }
+};
+const TOKEN_COLORS = ['#00f5c4','#6366f1','#f43f5e','#fbbf24','#22d3a0','#a855f7','#3b82f6'];
+
+// ─── APP ───────────────────────────────────────────────────────────────────
+// ─── MOCK DATA (Simulated for Demo) ───────────────────────────────────────
+const MOCK_TOKENS = [
+    { name: 'Pepe Army', sym: 'PEPE', price: 0.00000123, ch1: 5.4, ch24: 12.8, vol: 1250000, mcap: 45000000, liq: 850000, chain: 'solana' },
+    { name: 'Solana Dog', sym: 'SDOG', price: 0.045, ch1: -2.1, ch24: 45.2, vol: 850000, mcap: 12000000, liq: 450000, chain: 'solana' },
+    { name: 'Base Master', sym: 'BMAST', price: 1.25, ch1: 0.5, ch24: -5.4, vol: 320000, mcap: 8500000, liq: 120000, chain: 'base' },
+    { name: 'Ether Whale', sym: 'WHALE', price: 245.50, ch1: 1.2, ch24: 3.5, vol: 15000000, mcap: 500000000, liq: 25000000, chain: 'ethereum' },
+    { name: 'BNB Rocket', sym: 'ROCKET', price: 0.0054, ch1: 12.5, ch24: 150.2, vol: 4500000, mcap: 25000000, liq: 950000, chain: 'bsc' },
+    { name: 'Cyber Neko', sym: 'NEKO', price: 0.00078, ch1: -8.4, ch24: -12.5, vol: 120000, mcap: 2100000, liq: 85000, chain: 'base' },
+    { name: 'AI Sentinel', sym: 'SENT', price: 0.89, ch1: 4.2, ch24: 22.1, vol: 2100000, mcap: 15000000, liq: 1200000, chain: 'ethereum' },
+    { name: 'Meme King', sym: 'MKING', price: 0.000045, ch1: 15.2, ch24: 85.4, vol: 950000, mcap: 5400000, liq: 320000, chain: 'solana' },
+    { name: 'Zk Sync Dog', sym: 'ZKDOG', price: 0.0012, ch1: -1.5, ch24: 4.2, vol: 54000, mcap: 850000, liq: 45000, chain: 'outro' },
+    { name: 'Alpha Moon', sym: 'ALPHA', price: 12.40, ch1: 0.8, ch24: -2.1, vol: 1200000, mcap: 85000000, liq: 5400000, chain: 'arbitrum' },
+    { name: 'Glitch Protocol', sym: 'GLITCH', price: 0.00000054, ch1: 45.2, ch24: 320.5, vol: 2500000, mcap: 1200000, liq: 150000, chain: 'base' },
+    { name: 'Fast Solana', sym: 'FAST', price: 0.002, ch1: -12.4, ch24: -45.2, vol: 850000, mcap: 4200000, liq: 210000, chain: 'solana' }
+];
+
+const MOCK_NEWS = [
+    { title: "Bitcoin rompe barreira dos $70k e mercado entra em euforia total.", source: "CoinTelegraph", published: new Date(), sentiment: 'bullish' },
+    { title: "SEC aprova novo ETF de Ethereum Spot, impulsionando altcoins.", source: "CryptoSlate", published: new Date(Date.now() - 3600000), sentiment: 'bullish' },
+    { title: "Baleia movimenta 50.000 BTC de carteira dormente após 10 anos.", source: "Whale Alert", published: new Date(Date.now() - 7200000), sentiment: 'neutral' },
+    { title: "Hack em protocolo DeFi da rede Base resulta em perda de $15M.", source: "The Block", published: new Date(Date.now() - 10800000), sentiment: 'bearish' },
+    { title: "Solana apresenta instabilidade na rede após pico de volume em memecoins.", source: "Decrypt", published: new Date(Date.now() - 14400000), sentiment: 'bearish' }
+];
+
+const App = {
+    state: {
+        filter: 'all',
+        networkFilter: 'all',
+        minScore: 0,
+        search: '',
+        sort: { key: 'score', dir: 'desc' },
+        tokens: [],
+        stables: [],
+        watchlist: JSON.parse(localStorage.getItem('watchlist') || '[]'),
+        securityCache: {},
+        isLoading: false,
+        fearGreed: { value: "75", value_classification: "Greed" },
+        news: [],
+        newsFilter: 'all',
+        newsPage: 1,
+        chatHistory: [],
+        fetchInProgress: false,
+    },
+    charts: { gainers: null, volLiq: null, peg: null, share: null },
+    DATA: [],
+    _apiKey: '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',
+
+    async init() {
+        this.renderFilters();
+        this.startClock();
+        
+        // Simular carregamento inicial
+        this.state.isLoading = true;
+        setTimeout(() => {
+            this.fetchData();
+            this.fetchNews();
+            this.fetchFearGreed();
+            this.fetchStablecoins();
+            this.state.isLoading = false;
+            this.renderAll();
+        }, 1000);
+
+        // Atualizações simuladas
+        setInterval(() => this.fetchData(), 30000);
+        
+        lucide.createIcons();
+        this.updateWatchlistCount();
+        this.updateApiStatus('dex', '✓ Simulado', '#22d3a0');
+        this.updateApiStatus('coingecko', '✓ Simulado', '#22d3a0');
+        this.updateApiStatus('cryptopanic', '✓ Simulado', '#22d3a0');
+        this.updateApiStatus('fear', '✓ Simulado', '#22d3a0');
+        this.updateApiStatus('goplus', '✓ Simulado', '#22d3a0');
+        this.checkApiKey();
+    },
+
+    startClock() {
+        const update = () => {
+            const el = document.getElementById('currentDate');
+            if (el) el.textContent = 'ATIVO — ' + new Date().toLocaleString('pt-BR', {
+                day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+        };
+        update();
+        setInterval(update, 1000);
+    },
+
+    checkApiKey() {
+        const warning = document.getElementById('apiKeyWarning');
+        if (this._apiKey && this._apiKey !== 'demo-mode') {
+            if (warning) warning.classList.add('hidden');
+            this.updateApiStatus('groq', '✓ Groq AI Ativo', '#22d3a0');
+        } else {
+            if (warning) warning.classList.remove('hidden');
+            this.updateApiStatus('groq', '— Sem key', '#f43f5e');
+        }
+    },
+    openApiKeyModal() {
+        const el = document.getElementById('modalContent');
+        const overlay = document.getElementById('modalOverlay');
+        el.innerHTML = `
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-sm font-bold text-white uppercase tracking-wider">Configurar API Key</h2>
+                <button onclick="App.closeModal()" class="text-muted hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-[11px] text-muted leading-relaxed">
+                    Insira sua <strong>Groq API Key</strong> para habilitar as funções avançadas de IA do Spartan.
+                    A chave será salva apenas na memória desta sessão.
+                </p>
+                <div>
+                    <label class="text-[9px] font-bold text-muted uppercase tracking-widest">Groq API Key</label>
+                    <input type="password" id="new-api-key" value="${this._apiKey === 'demo-mode' ? '' : this._apiKey}" 
+                           placeholder="gsk_..." class="input-dark mt-1.5">
+                </div>
+                <button onclick="App.saveApiKey()" 
+                        class="w-full py-3 bg-accent text-bg rounded-xl font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all">
+                    Salvar Chave
+                </button>
+            </div>`;
+        overlay.classList.remove('hidden'); overlay.classList.add('flex');
+        lucide.createIcons();
+    },
+    saveApiKey() {
+        const key = document.getElementById('new-api-key').value.trim();
+        if (key) {
+            this._apiKey = key;
+            this.checkApiKey();
+            this.showToast('✅ API Key salva com sucesso!', 'success');
+            this.closeModal();
+        } else {
+            this.showToast('⚠️ Por favor, insira uma chave válida.', 'alert');
+        }
+    },
+
+    // ─── API STATUS ──────────────────────────────────────────────────────
+    updateApiStatus(api, msg, color) {
+        const el = document.getElementById(`api-status-${api}`);
+        if (el) { el.textContent = msg; el.style.color = color; }
+    },
+
+    // ─── DATA FETCHING (Simulated) ───────────────────────────────────────
+    fetchData() {
+        // Gerar tokens baseados nos mocks com variações aleatórias
+        const pairs = MOCK_TOKENS.map(t => ({
+            pairAddress: '0x' + Math.random().toString(16).slice(2, 10),
+            baseToken: { name: t.name, symbol: t.sym, address: '0x' + Math.random().toString(16).slice(2, 10) },
+            priceUsd: (t.price * (0.95 + Math.random() * 0.1)).toString(),
+            priceChange: { 
+                m15: (Math.random() * 6 - 3).toString(),
+                h1: (t.ch1 + (Math.random() * 2 - 1)).toString(), 
+                h24: (t.ch24 + (Math.random() * 5 - 2.5)).toString() 
+            },
+            volume: { h24: t.vol * (0.8 + Math.random() * 0.4) },
+            fdv: t.mcap,
+            liquidity: { usd: t.liq },
+            chainId: t.chain,
+            pairCreatedAt: Date.now() - Math.random() * 86400000,
+            url: '#'
+        }));
+
+        this.processData(pairs);
+        this.fetchGlobalMetrics();
+        this.renderAll();
+    },
+
+    fetchGlobalMetrics() {
+        const mktCap = 2650000000000 * (0.98 + Math.random() * 0.04);
+        const vol = 125000000000 * (0.9 + Math.random() * 0.2);
+        const btcPrice = 68500 * (0.99 + Math.random() * 0.02);
+        
+        this.updateMetric('header-mktcap', mktCap, 2.4, 'T');
+        this.updateMetric('header-volume', vol, null, 'B');
+        this.updateMetric('header-btc-dom', 52.4, null, '%');
+        this.updateMetric('header-btc-price', btcPrice, 1.2, '$');
+    },
+
+    fetchFearGreed() {
+        const fg = { value: (65 + Math.floor(Math.random() * 20)).toString(), value_classification: "Greed" };
+        this.state.fearGreed = fg;
+        const el = document.getElementById('header-fear-greed');
+        const labelEl = document.getElementById('header-fear-label');
+        if (el) {
+            el.textContent = fg.value;
+            el.style.color = '#22d3a0';
+        }
+        if (labelEl) labelEl.textContent = 'Ganância';
+    },
+
+    translateFearGreed(classification) {
+        const map = {
+            'Extreme Fear': 'Medo Extremo', 'Fear': 'Medo',
+            'Neutral': 'Neutro', 'Greed': 'Ganância', 'Extreme Greed': 'Ganância Extrema'
+        };
+        return map[classification] || classification;
+    },
+
+    fetchNews() {
+        this.state.news = MOCK_NEWS.map((n, i) => ({
+            id: i,
+            ...n,
+            url: '#',
+            currencies: ['BTC', 'ETH', 'SOL'].slice(0, Math.floor(Math.random() * 3) + 1),
+            kind: 'news',
+            votes: { positive: 10, negative: 2, important: 5 }
+        }));
+        this.renderNewsGrid();
+        this.renderNewsSidebar();
+    },
+
+    // ─── NEWS (CryptoPanic — 100% grátis) ────────────────────────────────
+    getFilteredNews() {
+        if (this.state.newsFilter === 'all') return this.state.news;
+        if (this.state.newsFilter === 'bullish') return this.state.news.filter(n => n.sentiment === 'bullish');
+        if (this.state.newsFilter === 'bearish') return this.state.news.filter(n => n.sentiment === 'bearish');
+        if (this.state.newsFilter === 'important') return this.state.news.filter(n => (n.votes.important || 0) > 0 || (n.votes.positive || 0) > 5);
+        return this.state.news;
+    },
+
+    renderNewsGrid() {
+        const el = document.getElementById('newsGrid'); if (!el) return;
+        const filtered = this.getFilteredNews();
+        if (!filtered.length) {
+            el.innerHTML = '<div class="col-span-full p-8 text-center text-muted text-xs">Nenhuma notícia encontrada.</div>';
+            return;
+        }
+        const sentimentConfig = {
+            bullish: { color: 'border-grn/30 bg-grn/5', badge: 'text-grn bg-grn/10 border-grn/30', label: '📈 Bullish' },
+            bearish: { color: 'border-red/30 bg-red/5',  badge: 'text-red bg-red/10 border-red/30', label: '📉 Bearish' },
+            neutral: { color: 'border-border', badge: 'text-muted bg-border/30 border-border', label: '⚖️ Neutro' },
+        };
+        el.innerHTML = filtered.slice(0, 12).map(n => {
+            const s = sentimentConfig[n.sentiment] || sentimentConfig.neutral;
+            const ago = this.fmtAgo(n.published);
+            const coins = n.currencies.slice(0,3).map(c => `<span class="px-1.5 py-0.5 bg-accent/10 text-accent rounded text-[8px] font-bold">${c}</span>`).join('');
+            return `<a href="${n.url}" target="_blank" rel="noopener"
+                class="card cursor-pointer group ${s.color} hover:border-accent/40 no-underline block space-y-3">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="badge ${s.badge}">${s.label}</span>
+                    <span class="text-[8px] text-muted shrink-0">${ago}</span>
+                </div>
+                <h3 class="text-xs font-bold text-white group-hover:text-accent transition-colors leading-snug line-clamp-3">${n.title}</h3>
+                <div class="flex items-center justify-between">
+                    <span class="text-[9px] text-muted font-bold">${n.source}</span>
+                    <div class="flex gap-1">${coins}</div>
+                </div>
+            </a>`;
+        }).join('');
+        const loadBtn = document.getElementById('loadMoreNews');
+        if (loadBtn) loadBtn.classList.toggle('hidden', filtered.length <= 12);
+    },
+
+    renderNewsSidebar() {
+        const el = document.getElementById('newsFeedSidebar'); if (!el) return;
+        const news = this.state.news.slice(0, 5);
+        if (!news.length) return;
+        const sentColors = { bullish: 'text-grn', bearish: 'text-red', neutral: 'text-muted' };
+        const sentLabel  = { bullish: 'Bullish', bearish: 'Bearish', neutral: 'Neutro' };
+        el.innerHTML = news.map(n => `
+            <a href="${n.url}" target="_blank" rel="noopener"
+               class="block p-3 bg-bg/50 rounded-xl border border-border hover:border-accent/20 transition-colors no-underline">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[8px] ${sentColors[n.sentiment]} font-bold uppercase">${sentLabel[n.sentiment]}</span>
+                    <span class="text-[8px] text-muted">${this.fmtAgo(n.published)}</span>
+                </div>
+                <p class="text-xs font-bold text-white mt-1 line-clamp-2 leading-snug">${n.title}</p>
+                <span class="text-[8px] text-muted mt-1 block">${n.source}</span>
+            </a>`).join('');
+    },
+
+    renderNewsStatic() {
+        const el = document.getElementById('newsFeedSidebar'); if (!el) return;
+        el.innerHTML = '<div class="text-xs text-muted text-center py-4">Notícias offline. Verifique sua conexão.</div>';
+    },
+
+    loadMoreNews() {
+        const el = document.getElementById('newsGrid'); if (!el) return;
+        const filtered = this.getFilteredNews();
+        const current = el.querySelectorAll('a').length;
+        const more = filtered.slice(current, current + 6);
+        if (!more.length) { document.getElementById('loadMoreNews')?.classList.add('hidden'); return; }
+        const sentimentConfig = {
+            bullish: { color: 'border-grn/30 bg-grn/5', badge: 'text-grn bg-grn/10 border-grn/30', label: '📈 Bullish' },
+            bearish: { color: 'border-red/30 bg-red/5',  badge: 'text-red bg-red/10 border-red/30', label: '📉 Bearish' },
+            neutral: { color: 'border-border', badge: 'text-muted bg-border/30 border-border', label: '⚖️ Neutro' },
+        };
+        more.forEach(n => {
+            const s = sentimentConfig[n.sentiment] || sentimentConfig.neutral;
+            const div = document.createElement('a');
+            div.href = n.url; div.target = '_blank'; div.rel = 'noopener';
+            div.className = `card cursor-pointer group ${s.color} hover:border-accent/40 no-underline block space-y-3`;
+            div.innerHTML = `
+                <div class="flex items-start justify-between gap-2">
+                    <span class="badge ${s.badge}">${s.label}</span>
+                    <span class="text-[8px] text-muted shrink-0">${this.fmtAgo(n.published)}</span>
+                </div>
+                <h3 class="text-xs font-bold text-white group-hover:text-accent transition-colors leading-snug line-clamp-3">${n.title}</h3>
+                <span class="text-[9px] text-muted font-bold">${n.source}</span>`;
+            el.appendChild(div);
+        });
+        if (current + more.length >= filtered.length) document.getElementById('loadMoreNews')?.classList.add('hidden');
+    },
+
+    updateMetric(id, value, delta, unit) {
+        const el = document.getElementById(id);
+        const dEl = document.getElementById(id + '-delta');
+        if (el) {
+            if (unit === 'T') el.textContent = `$${(value/1e12).toFixed(3)}T`;
+            else if (unit === 'B') el.textContent = `$${(value/1e9).toFixed(1)}B`;
+            else if (unit === '%') el.textContent = `${value.toFixed(1)}%`;
+            else if (unit === '$') el.textContent = `$${value.toLocaleString()}`;
+        }
+        if (dEl && delta !== null) {
+            const pos = delta >= 0;
+            dEl.textContent = `${pos ? '▲' : '▼'} ${pos ? '+' : ''}${Math.abs(delta).toFixed(1)}%`;
+            dEl.className = `text-[9px] font-bold ${pos ? 'text-grn' : 'text-red'}`;
+        }
+    },
+
+    fetchStablecoins() {
+        const data = {
+            tether: { usd: 1.0002, usd_24h_change: 0.01 },
+            'usd-coin': { usd: 0.9998, usd_24h_change: -0.01 },
+            dai: { usd: 1.0001, usd_24h_change: 0.02 },
+            frax: { usd: 1.0, usd_24h_change: 0 },
+            'ethena-usde': { usd: 0.9995, usd_24h_change: -0.05 },
+            'paypal-usd': { usd: 1.0001, usd_24h_change: 0.01 }
+        };
+        const stables = [
+            { id:'tether', name:'Tether', sym:'USDT', logo:'bg-green-500' },
+            { id:'usd-coin', name:'USD Coin', sym:'USDC', logo:'bg-blue-500' },
+            { id:'dai', name:'DAI', sym:'DAI', logo:'bg-yellow-500' },
+            { id:'frax', name:'Frax', sym:'FRAX', logo:'bg-teal-500' },
+            { id:'ethena-usde', name:'Ethena USDe', sym:'USDe', logo:'bg-white/20' },
+            { id:'paypal-usd', name:'PayPal USD', sym:'PYUSD', logo:'bg-blue-700' },
+        ];
+        this.state.stables = stables.map(s => ({
+            ...s, price: data[s.id]?.usd || 1.0, change: data[s.id]?.usd_24h_change || 0
+        }));
+        this.renderStables();
+    },
+
+    processData(pairs) {
+        this.DATA = pairs.slice(0, 50).map((pair, i) => {
+            const p_n   = parseFloat(pair.priceUsd) || 0;
+            const v_n   = parseFloat(pair.volume?.h24) || 0;
+            const m_n   = parseFloat(pair.fdv || pair.marketCap) || 0;
+            const m15_n = parseFloat(pair.priceChange?.m15) || 0;
+            const ch1_n = parseFloat(pair.priceChange?.h1) || 0;
+            const ch24_n= parseFloat(pair.priceChange?.h24) || 0;
+            const liq   = pair.liquidity?.usd || 0;
+            const score = Math.min(99, Math.floor(
+                30 + Math.min((v_n/(m_n||1))*100, 30) + Math.min(Math.abs(ch1_n),20) + (liq>100000?20:0) + Math.min(Math.abs(m15_n)*2, 10)
+            ));
+            let chain = pair.chainId || 'outro';
+            if (chain === 'eth') chain = 'ethereum';
+            if (chain === 'polygon_pos') chain = 'polygon';
+            return {
+                id: pair.pairAddress, address: pair.baseToken?.address || '',
+                name: pair.baseToken?.name || '—', sym: pair.baseToken?.symbol || '—',
+                price: p_n < 0.0001 ? `$${p_n.toFixed(8)}` : `$${p_n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:6})}`,
+                price_n: p_n, 
+                m15: `${m15_n.toFixed(2)}%`, m15_n,
+                ch1: `${ch1_n.toFixed(2)}%`, ch1_n,
+                ch24: `${ch24_n.toFixed(2)}%`, ch24_n,
+                vol: this.fmtCur(v_n), vol_n: v_n, mcap: this.fmtCur(m_n), mcap_n: m_n,
+                created_at: pair.pairCreatedAt ? new Date(pair.pairCreatedAt) : new Date(),
+                timeAgo: this.fmtAgo(pair.pairCreatedAt ? new Date(pair.pairCreatedAt) : new Date()),
+                chain, score, liquidity: liq, url: pair.url,
+                color: TOKEN_COLORS[i % TOKEN_COLORS.length],
+                isFavorite: this.state.watchlist.some(w => w.id === pair.pairAddress)
+            };
+        });
+        this.state.tokens = [...this.DATA];
+        this.saveScoreSnapshot(this.DATA);
+        this.checkAlerts(this.DATA);
+    },
+
+    // ─── SECURITY (GoPlus — 100% grátis) ─────────────────────────────────
+    async analyzeRugRisk(address, chain) {
+        if (chain === 'solana') return { riskScore:50, honeypot:false, lpLocked:false, buyTax:'N/A', sellTax:'N/A', desc:'Não disponível para Solana' };
+        const chainIds = { ethereum:'1', base:'8453', bsc:'56', polygon:'137', arbitrum:'42161' };
+        const chainId = chainIds[chain];
+        if (!chainId) return null;
+        const key = `${chainId}_${address}`;
+        if (this.state.securityCache[key]) return this.state.securityCache[key];
+        try {
+            const r = await fetch(`https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${address}`);
+            const json = await r.json();
+            const d = json.result?.[address.toLowerCase()];
+            if (d) {
+                const risk = {
+                    lpLocked: d.lp_holders?.some(h => h.is_locked) || false,
+                    mintable: d.is_mintable === '1',
+                    honeypot: d.is_honeypot === '1',
+                    buyTax: (parseFloat(d.buy_tax||0)*100).toFixed(1)+'%',
+                    sellTax: (parseFloat(d.sell_tax||0)*100).toFixed(1)+'%',
+                    riskScore: this.calcRiskScore(d)
+                };
+                this.state.securityCache[key] = risk;
+                this.updateApiStatus('goplus', '✓ Online', '#22d3a0');
+                return risk;
+            }
+        } catch(e) { this.updateApiStatus('goplus', '✗ Erro', '#f43f5e'); }
+        return null;
+    },
+
+    calcRiskScore(d) {
+        let s = 0;
+        if (d.is_honeypot === '1') s += 100;
+        if (d.is_mintable === '1') s += 30;
+        if (parseFloat(d.buy_tax||0) > 0.1) s += 20;
+        if (parseFloat(d.sell_tax||0) > 0.1) s += 20;
+        return Math.min(100, s);
+    },
+
+    // ─── ALERTS ──────────────────────────────────────────────────────────
+    saveScoreSnapshot(tokens) {
+        const ts = Date.now();
+        const hist = JSON.parse(localStorage.getItem('score_history') || '{}');
+        tokens.forEach(t => {
+            if (!hist[t.id]) hist[t.id] = [];
+            hist[t.id].push({ timestamp: ts, score: t.score });
+            hist[t.id] = hist[t.id].filter(s => s.timestamp > ts - 48*3600000);
+        });
+        localStorage.setItem('score_history', JSON.stringify(hist));
+    },
+
+    checkAlerts(tokens) {
+        const alerts = JSON.parse(localStorage.getItem('alerts') || '[]');
+        alerts.forEach(a => {
+            const t = tokens.find(x => x.address === a.tokenAddress);
+            if (!t) return;
+            if ((a.condition === 'ai_score_above' && t.score >= a.threshold) ||
+                (a.condition === 'price_change_above' && Math.abs(t.ch1_n) >= a.threshold))
+                this.notify(`🚨 ${t.sym}: Alerta atingido! (${a.condition.replace(/_/g,' ')} ${a.threshold})`);
+        });
+    },
+
+    notify(msg) {
+        this.showToast(msg, 'alert');
+        if (!('Notification' in window)) return;
+        if (Notification.permission === 'granted') new Notification('Crypto Radar', { body: msg });
+        else if (Notification.permission !== 'denied') Notification.requestPermission();
+    },
+
+    // NOVO: Toast notifications no browser (sem depender de Notification API)
+    showToast(msg, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        const colors = { success: 'border-grn/40 bg-grn/10 text-grn', alert: 'border-red/40 bg-red/10 text-red', info: 'border-accent/40 bg-accent/10 text-accent' };
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto px-4 py-3 rounded-xl border text-xs font-bold max-w-xs animate-fadeup ${colors[type]||colors.info}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    },
+
+    // ─── WATCHLIST ────────────────────────────────────────────────────────
+    toggleFavorite(id) {
+        const t = this.DATA.find(x => x.id === id);
+        if (!t) return;
+        const idx = this.state.watchlist.findIndex(w => w.id === id);
+        if (idx > -1) this.state.watchlist.splice(idx, 1);
+        else this.state.watchlist.push(t);
+        localStorage.setItem('watchlist', JSON.stringify(this.state.watchlist));
+        this.DATA.forEach(x => { x.isFavorite = this.state.watchlist.some(w => w.id === x.id); });
+        this.updateWatchlistCount();
+        this.updateTable();
+        this.renderWatchlist();
+        lucide.createIcons();
+    },
+
+    updateWatchlistCount() {
+        const cnt = document.getElementById('watchlist-count');
+        const n = this.state.watchlist.length;
+        if (cnt) { cnt.textContent = n; cnt.classList.toggle('hidden', n === 0); }
+    },
+
+    renderWatchlist() {
+        const el = document.getElementById('watchlistContainer'); if (!el) return;
+        if (!this.state.watchlist.length) {
+            el.innerHTML = '<div class="p-12 text-center text-muted text-xs">Nenhum token na watchlist. Clique no ❤ em qualquer token para adicionar.</div>';
+            return;
+        }
+        el.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left border-collapse">
+            <thead><tr class="bg-card2/60 border-b border-border text-[9px] font-bold text-muted uppercase tracking-widest">
+                <th class="px-5 py-3"></th><th class="px-5 py-3">Token</th><th class="px-5 py-3">Preço</th>
+                <th class="px-5 py-3">15M %</th><th class="px-5 py-3">24H %</th><th class="px-5 py-3">AI Score</th><th class="px-5 py-3 text-right">Ações</th>
+            </tr></thead>
+            <tbody class="divide-y divide-border/40 text-sm">
+                ${this.state.watchlist.map(t => `<tr class="hover:bg-accent/5">
+                    <td class="px-5 py-3">
+                        <button onclick="App.toggleFavorite('${t.id}')"><i data-lucide="heart" class="w-4 h-4 fill-red text-red"></i></button>
+                    </td>
+                    <td class="px-5 py-3"><div class="font-bold text-white">${t.name}</div><div class="text-[9px] text-muted">${t.sym}</div></td>
+                    <td class="px-5 py-3 font-mono">${t.price}</td>
+                    <td class="px-5 py-3"><span class="${t.m15_n>=0?'text-grn':'text-red'} font-bold">${t.m15}</span></td>
+                    <td class="px-5 py-3"><span class="${t.ch24_n>=0?'text-grn':'text-red'} font-bold">${t.ch24}</span></td>
+                    <td class="px-5 py-3"><span class="text-accent font-bold">${t.score}</span></td>
+                    <td class="px-5 py-3 text-right">
+                        <a href="${t.url||'#'}" target="_blank" class="text-xs text-accent underline">Ver</a>
+                    </td>
+                </tr>`).join('')}
+            </tbody></table></div>`;
+        lucide.createIcons();
+    },
+
+    // ─── RENDER ──────────────────────────────────────────────────────────
+    renderAll() {
+        this.renderTicker();
+        this.renderSummary();
+        this.renderHotGrid();
+        this.updateTable();
+        this.renderWatchlist();
+        this.renderStables(); // Garantir que stables renderizem sempre que houver update
+        
+        const mon = document.getElementById('view-monitoring');
+        if (mon && !mon.classList.contains('hidden')) this.initCharts();
+        
+        const stables = document.getElementById('view-stables');
+        if (stables && !stables.classList.contains('hidden')) this.initStablesCharts();
+        
+        this.renderAISignals();
+        lucide.createIcons();
+    },
+
+    renderTicker() {
+        const el = document.getElementById('ticker'); if (!el || !this.DATA.length) return;
+        el.innerHTML = [...this.DATA, ...this.DATA].map(t =>
+            `<div class="flex items-center gap-2 cursor-pointer">
+                <span class="font-bold text-accent text-xs">${t.sym}</span>
+                <span class="text-white text-xs font-mono">${t.price}</span>
+                <span class="${t.ch24_n>=0?'text-grn':'text-red'} text-[9px] font-bold">${t.ch24_n>=0?'▲':'▼'} ${t.ch24}</span>
+            </div>`
+        ).join('');
+    },
+
+    renderSummary() {
+        const el = document.getElementById('summaryGrid'); if (!el) return;
+        const D = this.DATA;
+        const topG = [...D].sort((a,b)=>b.ch24_n-a.ch24_n)[0];
+        const topV = [...D].sort((a,b)=>b.vol_n-a.vol_n)[0];
+        const chains = D.reduce((a,t)=>{a[t.chain]=(a[t.chain]||0)+1;return a;},{});
+        const topC = Object.entries(chains).sort((a,b)=>b[1]-a[1])[0];
+        const fg = this.state.fearGreed;
+        const cards = [
+            { label:'Tokens Monitorados', val:D.length||'—', icon:'sparkles', col:'text-grn', desc:'Atualizados agora' },
+            { label:'Trending (>5% 1H)',  val:D.filter(t=>t.ch1_n>5).length||'0', icon:'flame', col:'text-accent', desc:'Momentum alto' },
+            { label:'Top Gainer',         val:topG?`+${topG.ch24}`:'—', icon:'trending-up', col:'text-accd', desc:topG?topG.sym:'—' },
+            { label:'Top Volume',         val:topV?topV.vol:'—', icon:'dollar-sign', col:'text-ylw', desc:topV?topV.sym:'—' },
+            { label:'Rede Líder',         val:topC?CHAINS[topC[0]]?.label||topC[0]:'—', icon:'zap', col:'text-red', desc:topC?`${Math.round((topC[1]/D.length)*100)}% dos tokens`:'—' },
+            { label:'Score Médio IA',     val:D.length?Math.round(D.reduce((s,t)=>s+t.score,0)/D.length)+'':'—', icon:'brain', col:'text-accent', desc:'Todos os tokens' },
+        ];
+        el.innerHTML = cards.map(c =>
+            `<div class="card group cursor-default">
+                <div class="flex items-start justify-between mb-2">
+                    <span class="text-[9px] text-muted uppercase tracking-widest font-bold">${c.label}</span>
+                    <i data-lucide="${c.icon}" class="w-3.5 h-3.5 ${c.col} opacity-60"></i>
+                </div>
+                <div class="text-xl font-bold font-mono ${c.col}">${c.val}</div>
+                <div class="text-[9px] text-muted mt-1">${c.desc}</div>
+            </div>`
+        ).join('');
+    },
+
+    renderFilters() {
+        const el = document.getElementById('filterBar'); if (!el) return;
+        const filters = [
+            {id:'all',label:'Todos'},{id:'solana',label:'Solana'},
+            {id:'ethereum',label:'Ethereum'},{id:'base',label:'Base'},
+            {id:'bsc',label:'BNB'},{id:'alto',label:'Score > 85'}
+        ];
+        el.innerHTML = filters.map(f =>
+            `<button onclick="App.handleFilter('${f.id}')" class="btn-pill ${this.state.filter===f.id?'active':''}" id="filter-${f.id}">${f.label}</button>`
+        ).join('');
+    },
+
+    renderHotGrid() {
+        const el = document.getElementById('hotGrid'); if (!el) return;
+        const hot = [...this.DATA].sort((a,b)=>b.score-a.score).slice(0,3);
+        if (!hot.length) return;
+        el.innerHTML = hot.map(t =>
+            `<div class="card cursor-pointer group border-l-2" style="border-left-color:${t.color}" onclick="App.openModal('${t.id}')">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h4 class="text-white font-bold truncate w-36">${t.name}</h4>
+                        <span class="text-[9px] text-muted font-bold">${t.sym} · ${CHAINS[t.chain]?.label||'Outro'}</span>
+                    </div>
+                    <button onclick="event.stopPropagation(); App.analyzeToken('${t.sym}')"
+                            class="p-1.5 bg-accent/10 rounded-lg hover:bg-accent/20 transition-colors">
+                        <i data-lucide="brain" class="w-3.5 h-3.5 text-accent"></i>
+                    </button>
+                </div>
+                <div class="text-lg font-mono font-bold text-white mb-3">${t.price}</div>
+                <div class="flex gap-4 mb-4 text-xs">
+                    <div><div class="text-[9px] text-muted uppercase">Vol 24H</div><div class="font-bold">${t.vol}</div></div>
+                    <div><div class="text-[9px] text-muted uppercase">24H %</div><div class="font-bold ${t.ch24_n>=0?'text-grn':'text-red'}">${t.ch24}</div></div>
+                </div>
+                <div class="space-y-1">
+                    <div class="flex justify-between text-[9px] text-muted font-bold">
+                        <span>AI Score</span><span class="text-accent">${t.score}/100</span>
+                    </div>
+                    <div class="score-bar"><div class="score-fill" style="width:${t.score}%"></div></div>
+                </div>
+            </div>`
+        ).join('');
+    },
+
+    getFiltered() {
+        return this.DATA.filter(t => {
+            const s = t.name.toLowerCase().includes(this.state.search) || t.sym.toLowerCase().includes(this.state.search);
+            let f = true;
+            if (this.state.filter !== 'all') {
+                if (this.state.filter === 'alto') f = t.score >= 85;
+                else if (this.state.filter === 'favorites') f = t.isFavorite;
+                else f = t.chain === this.state.filter;
+            }
+            if (this.state.networkFilter !== 'all') f = f && t.chain === this.state.networkFilter;
+            return s && f && t.score >= this.state.minScore;
+        }).sort((a,b) => {
+            let va = a[this.state.sort.key], vb = b[this.state.sort.key];
+            if (this.state.sort.key === 'created_at') { va = new Date(va).getTime(); vb = new Date(vb).getTime(); }
+            return this.state.sort.dir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+        });
+    },
+
+    updateTable() {
+        const el = document.getElementById('tableBody');
+        const mEl = document.getElementById('mobileCards');
+        const cntEl = document.getElementById('tokenCount');
+        if (!el || !mEl) return;
+        const filtered = this.getFiltered();
+        if (cntEl) cntEl.textContent = `(${filtered.length} tokens)`;
+
+        const secClass = s => s>70?'bg-grn/10 text-grn border-grn/30':s>40?'bg-ylw/10 text-ylw border-ylw/30':'bg-red/10 text-red border-red/30';
+        const secLabel = s => s>70?'Seguro':s>40?'Suspeito':'Risco';
+        const scoreBreakdown = t => `Vol/MC: ${Math.floor(t.score*.4)} pts\nMakers: ${Math.floor(t.score*.3)} pts\nMomentum: ${Math.floor(t.score*.2)} pts\nVerif: ${Math.floor(t.score*.1)} pts\nTotal: ${t.score}/100`;
+
+        if (!filtered.length) {
+            el.innerHTML = '<tr><td colspan="11" class="p-10 text-center text-muted text-xs">Nenhum token encontrado com os filtros atuais.</td></tr>';
+            mEl.innerHTML = '';
+            return;
+        }
+
+        el.innerHTML = filtered.map(t => `
+            <tr class="hover:bg-accent/5 cursor-pointer transition-colors" onclick="App.openModal('${t.id}')">
+                <td class="px-5 py-3">
+                    <button onclick="event.stopPropagation();App.toggleFavorite('${t.id}')">
+                        <i data-lucide="heart" class="w-4 h-4 ${t.isFavorite?'fill-red text-red':'text-muted hover:text-red transition-colors'}"></i>
+                    </button>
+                </td>
+                <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-bold shrink-0"
+                             style="background:${t.color}20;color:${t.color}">${t.sym.slice(0,2)}</div>
+                        <div>
+                            <div class="text-xs font-bold text-white truncate w-28">${t.name}</div>
+                            <div class="text-[9px] text-muted font-bold">${t.sym}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-5 py-3 text-xs font-mono text-white">${t.price}</td>
+                <td class="px-5 py-3"><span class="text-xs font-bold ${t.m15_n>=0?'text-grn':'text-red'}">${t.m15}</span></td>
+                <td class="px-5 py-3"><span class="text-xs font-bold ${t.ch1_n>=0?'text-grn':'text-red'}">${t.ch1}</span></td>
+                <td class="px-5 py-3 hidden sm:table-cell"><span class="text-xs font-bold ${t.ch24_n>=0?'text-grn':'text-red'}">${t.ch24}</span></td>
+                <td class="px-5 py-3 text-xs text-slate-400 hidden lg:table-cell">${t.vol}</td>
+                <td class="px-5 py-3 text-xs text-slate-400 hidden xl:table-cell">${t.mcap}</td>
+                <td class="px-5 py-3 text-xs text-muted hidden md:table-cell">${t.timeAgo}</td>
+                <td class="px-5 py-3 hidden sm:table-cell">
+                    <span class="badge ${CHAINS[t.chain]?.color||CHAINS.outro.color}">${CHAINS[t.chain]?.label||'Outro'}</span>
+                </td>
+                <td class="px-5 py-3" title="${scoreBreakdown(t)}">
+                    <div class="flex items-center gap-2">
+                        <button onclick="event.stopPropagation();App.analyzeToken('${t.sym}')" class="p-1.5 bg-accent/10 rounded-lg hidden sm:block hover:bg-accent/20 transition-colors">
+                            <i data-lucide="brain" class="w-3 h-3 text-accent"></i>
+                        </button>
+                        <div>
+                            <span class="text-xs font-bold text-accent">${t.score}</span>
+                            <div class="score-bar w-14 mt-0.5"><div class="score-fill" style="width:${t.score}%"></div></div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-5 py-3 text-right">
+                    <span class="badge ${secClass(t.score)}">${secLabel(t.score)}</span>
+                </td>
+            </tr>`
+        ).join('');
+
+        // MELHORIA MOBILE: Cards responsivos
+        mEl.innerHTML = filtered.map(t => `
+            <div class="p-4 space-y-3 cursor-pointer hover:bg-accent/5 transition-colors" onclick="App.openModal('${t.id}')">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
+                             style="background:${t.color}20;color:${t.color}">${t.sym.slice(0,2)}</div>
+                        <div>
+                            <div class="text-sm font-bold text-white">${t.name}</div>
+                            <div class="text-[9px] text-muted font-bold">${t.sym} · ${CHAINS[t.chain]?.label||'Outro'}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="event.stopPropagation();App.toggleFavorite('${t.id}')">
+                            <i data-lucide="heart" class="w-5 h-5 ${t.isFavorite?'fill-red text-red':'text-muted'}"></i>
+                        </button>
+                        <div class="text-right">
+                            <div class="text-sm font-mono font-bold text-white">${t.price}</div>
+                            <div class="text-[9px] font-bold ${t.ch24_n>=0?'text-grn':'text-red'}">${t.ch24} (24h)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex-1">
+                        <div class="text-[9px] text-muted uppercase font-bold tracking-wider mb-1">AI Score</div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-accent">${t.score}</span>
+                            <div class="score-bar flex-1"><div class="score-fill" style="width:${t.score}%"></div></div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end gap-1">
+                        <span class="badge ${secClass(t.score)}">${secLabel(t.score)}</span>
+                        <span class="text-[8px] text-muted">${t.vol} vol</span>
+                    </div>
+                </div>
+            </div>`
+        ).join('');
+        lucide.createIcons();
+    },
+
+    renderStables() {
+        const el = document.getElementById('stableTableBody'); if (!el) return;
+        const search = document.getElementById('searchStablesInput')?.value.toLowerCase()||'';
+        const filtered = this.state.stables.filter(s =>
+            s.name.toLowerCase().includes(search) || s.sym.toLowerCase().includes(search)
+        );
+        if (!filtered.length && !this.state.stables.length) {
+            el.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-muted text-xs">Carregando stablecoins...</td></tr>';
+            return;
+        }
+        el.innerHTML = filtered.map(s => {
+            const dev = ((s.price - 1)*100).toFixed(4);
+            const stable = Math.abs(s.price - 1) < 0.001;
+            const action = s.price < 0.999 ? 'COMPRAR' : s.price > 1.001 ? 'VENDER' : 'AGUARDAR';
+            const actionColor = s.price < 0.999 ? 'text-grn' : s.price > 1.001 ? 'text-red' : 'text-muted';
+            return `<tr class="hover:bg-accent/5 transition-colors">
+                <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-full ${s.logo} flex items-center justify-center font-bold text-[9px] text-white">${s.sym[0]}</div>
+                        <div><div class="text-xs font-bold text-white">${s.name}</div><div class="text-[9px] text-muted font-bold">${s.sym}</div></div>
+                    </div>
+                </td>
+                <td class="px-5 py-3 font-mono text-xs text-white">$${s.price.toFixed(4)}</td>
+                <td class="px-5 py-3 font-mono text-xs ${s.price>=1?'text-grn':'text-red'}">${s.price>=1?'+':''}${dev}%</td>
+                <td class="px-5 py-3"><span class="text-[10px] font-bold uppercase ${stable?'text-grn':'text-ylw'}">${stable?'Estável':'Desvio'}</span></td>
+                <td class="px-5 py-3 text-right">
+                    <div class="flex items-center justify-end gap-3">
+                        <button onclick="App.analyzeToken('${s.sym}')" class="p-1.5 bg-accent/10 rounded-lg hover:bg-accent/20 transition-colors">
+                            <i data-lucide="brain" class="w-3.5 h-3.5 text-accent"></i>
+                        </button>
+                        <span class="text-[10px] font-bold uppercase ${actionColor}">${action}</span>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+        lucide.createIcons();
+    },
+
+    initStablesCharts() {
+        const pEl = document.getElementById('chartStablePeg');
+        const sEl = document.getElementById('chartStableShare');
+        if (!pEl || !sEl) return;
+        if (this.charts.peg) this.charts.peg.destroy();
+        if (this.charts.share) this.charts.share.destroy();
+        const days = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+        this.charts.peg = new Chart(pEl.getContext('2d'), {
+            type:'line', data:{
+                labels:days,
+                datasets:[
+                    {label:'USDT',data:[1.0001,1.0002,0.9999,1.0001,1.0002,1.0001,1.0002],borderColor:'#22d3a0',tension:.4,pointRadius:0},
+                    {label:'USDC',data:[0.9998,0.9999,1.0,0.9997,0.9998,0.9999,0.9998],borderColor:'#3b82f6',tension:.4,pointRadius:0}
+                ]
+            },
+            options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#64748b',font:{size:9}}}},scales:{y:{min:0.998,max:1.002,grid:{color:'#1e2d40'},ticks:{color:'#64748b',font:{size:9}}},x:{grid:{display:false},ticks:{color:'#64748b',font:{size:9}}}}}
+        });
+        this.charts.share = new Chart(sEl.getContext('2d'), {
+            type:'doughnut', data:{
+                labels:['USDT','USDC','DAI','Outras'],
+                datasets:[{data:[70,20,5,5],backgroundColor:['#22d3a0','#3b82f6','#fbbf24','#64748b'],borderWidth:0}]
+            },
+            options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{position:'bottom',labels:{color:'#64748b',font:{size:9},usePointStyle:true,padding:12}}}}
+        });
+    },
+
+    initCharts() {
+        const gEl = document.getElementById('chartGainers');
+        const vEl = document.getElementById('chartVolLiq');
+        if (!gEl || !vEl || !this.DATA.length) return;
+        if (this.charts.gainers) this.charts.gainers.destroy();
+        if (this.charts.volLiq) this.charts.volLiq.destroy();
+        const topG = [...this.DATA].sort((a,b)=>b.ch24_n-a.ch24_n).slice(0,6);
+        const top10 = [...this.DATA].sort((a,b)=>b.vol_n-a.vol_n).slice(0,10);
+        this.charts.gainers = new Chart(gEl.getContext('2d'), {
+            type:'bar', data:{
+                labels:topG.map(t=>t.sym),
+                datasets:[{ data:topG.map(t=>t.ch24_n), backgroundColor:topG.map(t=>`${t.color}40`), borderColor:topG.map(t=>t.color), borderWidth:1.5, borderRadius:6 }]
+            },
+            options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+                scales:{y:{grid:{color:'#1e2d40'},ticks:{color:'#64748b',font:{size:9},callback:v=>v.toFixed(1)+'%'}},
+                x:{grid:{display:false},ticks:{color:'#64748b',font:{size:9}}}}}
+        });
+        this.charts.volLiq = new Chart(vEl.getContext('2d'), {
+            type:'line', data:{
+                labels:top10.map(t=>t.sym),
+                datasets:[
+                    {label:'Volume',data:top10.map(t=>t.vol_n),borderColor:'#00f5c4',backgroundColor:'#00f5c420',fill:true,tension:.4,pointRadius:2},
+                    {label:'Liquidez',data:top10.map(t=>t.mcap_n),borderColor:'#6366f1',borderDash:[5,5],tension:.4,pointRadius:2}
+                ]
+            },
+            options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#64748b',font:{size:9}}}},
+                scales:{y:{grid:{color:'#1e2d40'},ticks:{color:'#64748b',font:{size:9},callback:v=>'$'+Number(v).toLocaleString()}},
+                x:{grid:{display:false},ticks:{color:'#64748b',font:{size:9}}}}}
+        });
+    },
+
+    renderAISignals() {
+        const el = document.getElementById('aiSignals'); if (!el) return;
+        const signals = [];
+        [...this.DATA].sort((a,b)=>b.m15_n-a.m15_n).slice(0,3).forEach(t=>{
+            if(t.m15_n>5) signals.push({icon:'zap',token:t.sym,msg:`Explosão: +${t.m15} em 15m`,col:'text-accent'});
+        });
+        [...this.DATA].sort((a,b)=>b.ch1_n-a.ch1_n).slice(0,2).forEach(t=>{
+            if(t.ch1_n>10) signals.push({icon:'trending-up',token:t.sym,msg:`+${t.ch1} em 1H`,col:'text-grn'});
+        });
+        [...this.DATA].sort((a,b)=>b.vol_n-a.vol_n).slice(0,2).forEach(t=>{
+            if(t.vol_n>500000) signals.push({icon:'activity',token:t.sym,msg:`Volume: ${t.vol}`,col:'text-accent'});
+        });
+        // NOVO: sinal do fear & greed
+        if (this.state.fearGreed) {
+            const fg = this.state.fearGreed;
+            const col = parseInt(fg.value) < 30 ? 'text-red' : parseInt(fg.value) > 70 ? 'text-grn' : 'text-ylw';
+            signals.unshift({icon:'gauge',token:'Mercado',msg:`${this.translateFearGreed(fg.value_classification)} (${fg.value}/100)`,col});
+        }
+        el.innerHTML = signals.length
+            ? signals.map(s=>`<div class="flex items-center gap-3 p-3 bg-bg/50 rounded-xl border border-border hover:border-accent/20 transition-colors">
+                <i data-lucide="${s.icon}" class="w-4 h-4 ${s.col} shrink-0"></i>
+                <div><h4 class="text-xs font-bold text-white">${s.token}</h4><p class="text-[9px] text-muted">${s.msg}</p></div>
+              </div>`).join('')
+            : '<p class="text-xs text-muted text-center py-4">Aguardando sinais...</p>';
+        lucide.createIcons();
+    },
+
+    // ─── SPARTAN AI (com histórico de conversa e contexto rico — via Groq AI) ──────────
+    async sendToSpartanAI(msg) {
+        if (!this._apiKey) return '⚠️ Configure sua GROQ_API_KEY para usar o Spartan AI. Clique em "API Key" no cabeçalho.';
+        try {
+            const top = this.DATA.slice(0,8).map(t=>`${t.sym}: ${t.price} (15m: ${t.m15}, 24h: ${t.ch24}, Score: ${t.score})`).join('\n');
+            const global = `Mkt Cap: ${document.getElementById('header-mktcap')?.textContent||'N/A'}, BTC Dom: ${document.getElementById('header-btc-dom')?.textContent||'N/A'}`;
+            const fg = this.state.fearGreed;
+            const fgContext = fg ? `\nÍNDICE MEDO & GANÂNCIA: ${fg.value}/100 — ${this.translateFearGreed(fg.value_classification)}` : '';
+            const newsContext = this.state.news.slice(0,3).map(n=>`- ${n.title} (${n.source})`).join('\n');
+
+            const messages = [
+                {
+                    role: 'system',
+                    content: `Você é o Spartan AI, assistente de análise tática de criptomoedas. Sua especialidade é detectar movimentos rápidos e oportunidades de curto prazo (scalping/day trade).
+
+MERCADO ATUAL:
+${global}${fgContext}
+
+TOP 8 TOKENS (Foco em variações de 15m):
+${top}
+
+NOTÍCIAS RECENTES:
+${newsContext || 'Sem notícias disponíveis.'}
+
+REGRAS TÁTICAS:
+- Priorize a análise de 15 minutos para identificar reversões ou explosões de preço.
+- Analise a correlação entre AI Score e o momentum de curtíssimo prazo.
+- Alerte sobre riscos de tokens com baixa liquidez ou quedas abruptas no m15.
+- Seja conciso e direto. Máximo 3 parágrafos.
+- Use markdown básico.`
+                },
+                ...this.state.chatHistory,
+                { role: 'user', content: msg }
+            ];
+
+            const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this._apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.3-70b-versatile',
+                    messages
+                })
+            });
+
+            if (!resp.ok) {
+                const errorData = await resp.json().catch(() => ({}));
+                console.error('Groq AI Error:', errorData);
+                const msg = errorData.error?.message || `Erro ${resp.status}`;
+                return `⚠️ Centro de Comando: ${msg}`;
+            }
+
+            const d = await resp.json();
+            const reply = d.choices[0].message.content;
+            this.state.chatHistory.push({ role:'user', content:msg });
+            this.state.chatHistory.push({ role:'assistant', content:reply });
+            if (this.state.chatHistory.length > 20) this.state.chatHistory = this.state.chatHistory.slice(-20);
+            return reply;
+        } catch(e) { 
+            console.error('AI Error:', e);
+            return 'Erro de conexão com o Centro de Comando via Groq AI. Verifique sua conexão.'; 
+        }
+    },
+
+    async askAI() {
+        const inp = document.getElementById('aiInput');
+        const chat = document.getElementById('aiChat');
+        if (!inp.value.trim()) return;
+        const msg = inp.value.trim(); inp.value='';
+        chat.innerHTML += `<div class="flex justify-end">
+            <div class="bg-accd/10 p-4 rounded-2xl rounded-tr-none border border-accd/20 text-xs max-w-[80%]">
+                <p class="text-accd font-bold text-[9px] uppercase mb-1">Comandante</p>
+                <p class="text-slate-200">${msg}</p>
+            </div>
+        </div>`;
+        chat.scrollTop = chat.scrollHeight;
+        const lid = 'loading-'+Date.now();
+        chat.innerHTML += `<div id="${lid}" class="flex gap-3">
+            <div class="w-9 h-9 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0">
+                <i data-lucide="sword" class="w-4 h-4 text-accent"></i>
+            </div>
+            <div class="bg-bg/50 p-4 rounded-2xl rounded-tl-none border border-border text-xs">
+                <div class="flex gap-1 items-center">
+                    <span class="w-1.5 h-1.5 bg-accent rounded-full animate-bounce"></span>
+                    <span class="w-1.5 h-1.5 bg-accent rounded-full animate-bounce [animation-delay:.15s]"></span>
+                    <span class="w-1.5 h-1.5 bg-accent rounded-full animate-bounce [animation-delay:.3s]"></span>
+                </div>
+            </div>
+        </div>`;
+        chat.scrollTop = chat.scrollHeight; lucide.createIcons();
+        const resp = await this.sendToSpartanAI(msg);
+        const loadEl = document.getElementById(lid); if(loadEl) loadEl.remove();
+        // MELHORIA: renderizar markdown básico
+        const formatted = resp
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+            .replace(/\n\n/g, '</p><p class="mt-2">')
+            .replace(/\n/g, '<br>');
+        chat.innerHTML += `<div class="flex gap-3">
+            <div class="w-9 h-9 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0">
+                <i data-lucide="sword" class="w-4 h-4 text-accent"></i>
+            </div>
+            <div class="bg-bg/50 p-4 rounded-2xl rounded-tl-none border border-border text-xs max-w-[85%]">
+                <p class="text-accent font-bold text-[9px] uppercase mb-2">Spartan v3.0</p>
+                <div class="text-slate-300 leading-relaxed"><p>${formatted}</p></div>
+            </div>
+        </div>`;
+        chat.scrollTop = chat.scrollHeight; lucide.createIcons();
+    },
+
+    clearChat() {
+        this.state.chatHistory = [];
+        const chat = document.getElementById('aiChat');
+        if (chat) chat.innerHTML = `<div class="flex gap-3">
+            <div class="w-9 h-9 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0">
+                <i data-lucide="sword" class="w-4 h-4 text-accent"></i>
+            </div>
+            <div class="bg-bg/50 p-4 rounded-2xl rounded-tl-none border border-border text-sm max-w-[85%]">
+                <p class="text-accent font-bold mb-2 uppercase text-[9px] tracking-widest">Spartan Commander v3.0</p>
+                <p class="text-slate-300 leading-relaxed italic text-xs">Conversa reiniciada. Pronto para novos comandos, Comandante.</p>
+            </div>
+        </div>`;
+        lucide.createIcons();
+        this.showToast('🗑️ Conversa limpa.', 'info');
+    },
+
+    quickPrompt(txt) { document.getElementById('aiInput').value = txt; this.askAI(); },
+    analyzeToken(sym) { this.switchTab('ai'); document.getElementById('aiInput').value=`Analisar token ${sym} — riscos e potencial`; this.askAI(); },
+
+    // ─── MODAL ───────────────────────────────────────────────────────────
+    openModal(id) {
+        const t = this.DATA.find(x=>x.id===id) || this.state.watchlist.find(x=>x.id===id);
+        if (!t) return;
+        const el = document.getElementById('modalContent');
+        const overlay = document.getElementById('modalOverlay');
+        const secClass = t.score>70?'text-grn':t.score>40?'text-ylw':'text-red';
+        el.innerHTML = `
+            <div class="flex justify-between items-start">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold"
+                         style="background:${t.color}20;color:${t.color}">${t.sym.slice(0,2)}</div>
+                    <div>
+                        <h2 class="text-base font-bold text-white">${t.name}</h2>
+                        <span class="text-[9px] text-muted uppercase font-bold">${t.sym} · ${CHAINS[t.chain]?.label||'Outro'}</span>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="App.setupAlert('${t.id}')" class="p-1.5 hover:text-accent text-muted transition-colors"><i data-lucide="bell-plus" class="w-4 h-4"></i></button>
+                    <button onclick="App.toggleFavorite('${t.id}')" class="p-1.5 transition-colors"><i data-lucide="heart" class="w-4 h-4 ${t.isFavorite?'fill-red text-red':'text-muted hover:text-red'}"></i></button>
+                    <button onclick="App.closeModal()" class="p-1.5 text-muted hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 py-4 border-y border-border">
+                <div><span class="text-[9px] text-muted uppercase font-bold">Preço</span><div class="text-lg font-mono font-bold text-white mt-1">${t.price}</div></div>
+                <div class="text-right"><span class="text-[9px] text-muted uppercase font-bold">AI Score</span><div class="text-lg font-bold ${secClass} mt-1">${t.score}/100</div></div>
+                <div><span class="text-[9px] text-muted uppercase font-bold">Volume 24H</span><div class="text-sm font-bold mt-1">${t.vol}</div></div>
+                <div class="text-right"><span class="text-[9px] text-muted uppercase font-bold">Liquidez</span><div class="text-sm font-bold mt-1">${this.fmtCur(t.liquidity)}</div></div>
+                <div><span class="text-[9px] text-muted uppercase font-bold">1H %</span><div class="text-sm font-bold ${t.ch1_n>=0?'text-grn':'text-red'} mt-1">${t.ch1}</div></div>
+                <div class="text-right"><span class="text-[9px] text-muted uppercase font-bold">24H %</span><div class="text-sm font-bold ${t.ch24_n>=0?'text-grn':'text-red'} mt-1">${t.ch24}</div></div>
+            </div>
+            <div>
+                <h4 class="text-[10px] font-bold uppercase text-muted tracking-widest mb-2 flex items-center gap-1.5">
+                    <i data-lucide="line-chart" class="w-3.5 h-3.5 text-accent"></i> Histórico AI Score (48h)
+                </h4>
+                <div class="h-32 bg-bg/30 rounded-xl p-3 border border-border"><canvas id="scoreHistoryChart"></canvas></div>
+            </div>
+            <div>
+                <h4 class="text-[10px] font-bold uppercase text-muted tracking-widest mb-2 flex items-center gap-1.5">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-accent"></i> Análise de Segurança (GoPlus — Grátis)
+                </h4>
+                <div id="securityAnalysis" class="p-3 bg-bg/50 rounded-xl border border-border text-xs text-muted italic">Carregando análise...</div>
+            </div>
+            <div class="flex gap-3">
+                <a href="${t.url||'#'}" target="_blank" class="flex-1 py-3 bg-accent text-bg rounded-xl font-bold text-xs uppercase tracking-widest text-center hover:opacity-90 transition-all">Ver no DexScreener</a>
+                <button onclick="App.analyzeToken('${t.sym}'); App.closeModal();" class="flex-1 py-3 border border-accd/30 text-accd rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-accd/10 transition-all">Analisar com AI</button>
+            </div>`;
+        overlay.classList.remove('hidden'); overlay.classList.add('flex');
+        lucide.createIcons();
+        this.renderScoreHistory(t.id);
+        this.updateSecurityAnalysis(t.address, t.chain);
+    },
+
+    renderScoreHistory(id) {
+        const hist = JSON.parse(localStorage.getItem('score_history') || '{}')[id] || [];
+        const ctx = document.getElementById('scoreHistoryChart'); if(!ctx) return;
+        new Chart(ctx.getContext('2d'), {
+            type:'line',
+            data:{ labels:hist.map(s=>new Date(s.timestamp).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})),
+                   datasets:[{data:hist.map(s=>s.score),borderColor:'#00f5c4',backgroundColor:'#00f5c415',fill:true,tension:.4,pointRadius:2}]},
+            options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+                scales:{y:{min:0,max:100,grid:{color:'#1e2d40'},ticks:{color:'#64748b',font:{size:8}}},
+                x:{grid:{display:false},ticks:{color:'#64748b',font:{size:8}}}}}
+        });
+    },
+
+    async updateSecurityAnalysis(address, chain) {
+        const el = document.getElementById('securityAnalysis'); if (!el) return;
+        const risk = await this.analyzeRugRisk(address, chain);
+        if (!risk) { el.textContent = 'Análise não disponível para esta rede.'; return; }
+        const sc = 100 - risk.riskScore;
+        const col = sc >= 70 ? 'text-grn' : sc >= 40 ? 'text-ylw' : 'text-red';
+        el.innerHTML = `<div class="space-y-2 not-italic">
+            <div class="flex justify-between"><span class="text-muted">Honeypot</span><span class="${risk.honeypot?'text-red font-bold':'text-grn'}">${risk.honeypot?'⚠️ SIM':'✓ Não'}</span></div>
+            <div class="flex justify-between"><span class="text-muted">LP Locked</span><span class="${risk.lpLocked?'text-grn':'text-ylw'}">${risk.lpLocked?'✓ Sim':'⚠️ Não'}</span></div>
+            <div class="flex justify-between"><span class="text-muted">Mintable</span><span class="${risk.mintable?'text-red':'text-grn'}">${risk.mintable?'⚠️ Sim':'✓ Não'}</span></div>
+            <div class="flex justify-between"><span class="text-muted">Taxa Compra/Venda</span><span class="text-white">${risk.buyTax} / ${risk.sellTax}</span></div>
+            <div class="flex justify-between pt-2 border-t border-border"><span class="font-bold uppercase tracking-wider">Score de Segurança</span><span class="font-bold ${col}">${sc}/100</span></div>
+        </div>`;
+    },
+
+    setupAlert(id) {
+        const t = this.DATA.find(x=>x.id===id) || this.state.watchlist.find(x=>x.id===id);
+        if (!t) return;
+        const el = document.getElementById('modalContent');
+        el.innerHTML = `
+            <div class="flex justify-between items-center">
+                <h2 class="text-sm font-bold text-white uppercase tracking-wider">Alerta: ${t.sym}</h2>
+                <button onclick="App.openModal('${id}')" class="text-muted hover:text-white"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[9px] font-bold text-muted uppercase tracking-widest">Condição</label>
+                    <select id="alert-condition" class="input-dark mt-1.5">
+                        <option value="ai_score_above">AI Score acima de</option>
+                        <option value="price_change_above">Variação 1H acima de (%)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-muted uppercase tracking-widest">Valor Limite</label>
+                    <input type="number" id="alert-threshold" value="80" class="input-dark mt-1.5">
+                </div>
+                <div class="p-3 bg-accent/5 border border-accent/20 rounded-xl text-[10px] text-muted">
+                    Você receberá uma notificação no navegador e um toast visual quando a condição for atendida.
+                </div>
+                <button onclick="App.saveAlert('${t.address}','${t.sym}')"
+                        class="w-full py-3 bg-accent text-bg rounded-xl font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all">
+                    Ativar Alerta
+                </button>
+            </div>`;
+        lucide.createIcons();
+    },
+
+    saveAlert(address, sym) {
+        const condition = document.getElementById('alert-condition').value;
+        const threshold = parseFloat(document.getElementById('alert-threshold').value);
+        const alerts = JSON.parse(localStorage.getItem('alerts')||'[]');
+        alerts.push({ tokenAddress:address, tokenName:sym, condition, threshold, id:Date.now() });
+        localStorage.setItem('alerts', JSON.stringify(alerts));
+        this.showToast(`✅ Alerta ativado para ${sym}!`, 'success');
+        this.closeModal();
+    },
+
+    openAlertsModal() {
+        const alerts = JSON.parse(localStorage.getItem('alerts')||'[]');
+        const el = document.getElementById('modalContent');
+        const overlay = document.getElementById('modalOverlay');
+        el.innerHTML = `
+            <div class="flex justify-between items-center">
+                <h2 class="text-sm font-bold text-white uppercase tracking-wider">Alertas Ativos (${alerts.length})</h2>
+                <button onclick="App.closeModal()" class="text-muted hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3 max-h-[400px] overflow-y-auto">
+                ${!alerts.length
+                    ? '<p class="text-center py-8 text-muted text-xs">Nenhum alerta configurado.</p>'
+                    : alerts.map(a=>`<div class="flex items-center justify-between p-3 bg-bg/50 rounded-xl border border-border">
+                        <div>
+                            <div class="text-xs font-bold text-white">${a.tokenName}</div>
+                            <div class="text-[9px] text-muted uppercase">${a.condition.replace(/_/g,' ')}: ${a.threshold}</div>
+                        </div>
+                        <button onclick="App.deleteAlert(${a.id})" class="p-1.5 text-red hover:bg-red/10 rounded-lg transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>`).join('')
+                }
+            </div>
+            <button onclick="App.closeModal()" class="w-full py-3 border border-border text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:border-accent/20 transition-all">Fechar</button>`;
+        overlay.classList.remove('hidden'); overlay.classList.add('flex');
+        lucide.createIcons();
+    },
+
+    deleteAlert(id) {
+        let a = JSON.parse(localStorage.getItem('alerts')||'[]');
+        localStorage.setItem('alerts', JSON.stringify(a.filter(x=>x.id!==id)));
+        this.openAlertsModal();
+    },
+
+    closeModal() {
+        const o = document.getElementById('modalOverlay');
+        o.classList.add('hidden'); o.classList.remove('flex');
+    },
+
+    // ─── HANDLERS ────────────────────────────────────────────────────────
+    handleSearch()        { this.state.search = document.getElementById('searchInput').value.toLowerCase(); this.updateTable(); },
+    handleFilter(f)       { this.state.filter = f; this.renderFilters(); this.updateTable(); },
+    handleNetworkFilter(n){ this.state.networkFilter = n; this.updateTable(); },
+    handleScoreFilter(s)  { this.state.minScore = parseInt(s); document.getElementById('score-label').textContent = s; this.updateTable(); },
+    handleSort(k)         {
+        if (this.state.sort.key===k) this.state.sort.dir = this.state.sort.dir==='asc'?'desc':'asc';
+        else { this.state.sort.key=k; this.state.sort.dir='desc'; }
+        const sel=document.getElementById('sort-by'); if(sel&&sel.value!==k) sel.value=k;
+        this.updateTable();
+    },
+
+    switchTab(tabId) {
+        const views = ['monitoring','ai','news','stables','watchlist'];
+        views.forEach(v => {
+            const el = document.getElementById(`view-${v}`);
+            const btn = document.getElementById(`tab-btn-${v}`);
+            if (v === tabId) {
+                el?.classList.remove('hidden');
+                btn?.classList.add('active');
+            } else {
+                el?.classList.add('hidden');
+                btn?.classList.remove('active');
+            }
+        });
+        if (tabId === 'monitoring') { this.initCharts(); }
+        if (tabId === 'stables') { this.renderStables(); this.initStablesCharts(); }
+        if (tabId === 'watchlist') { this.renderWatchlist(); }
+        if (tabId === 'news') { this.renderNewsGrid(); }
+        lucide.createIcons();
+    },
+
+    // ─── EXPORT ──────────────────────────────────────────────────────────
+    exportToCSV() {
+        const h = ['Token','Símbolo','Preço','1H%','24H%','Volume','Mkt Cap','Rede','AI Score'];
+        const rows = this.DATA.map(t=>[t.name,t.sym,t.price,t.ch1,t.ch24,t.vol,t.mcap,CHAINS[t.chain]?.label||'Outro',t.score]);
+        const csv = [h,...rows].map(r=>r.join(',')).join('\n');
+        const url = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+        const a = document.createElement('a');
+        a.href=url; a.download=`crypto-radar-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        this.showToast('📥 CSV exportado!', 'success');
+    },
+
+    // ─── UTILS ───────────────────────────────────────────────────────────
+    fmtCur(v) {
+        if(v>=1e9) return `$${(v/1e9).toFixed(2)}B`;
+        if(v>=1e6) return `$${(v/1e6).toFixed(1)}M`;
+        if(v>=1e3) return `$${(v/1e3).toFixed(1)}K`;
+        return `$${v.toFixed(0)}`;
+    },
+    fmtAgo(date) {
+        const d=Math.floor((new Date()-date)/1000);
+        if(d<60) return `${d}s atrás`;
+        if(d<3600) return `${Math.floor(d/60)}m atrás`;
+        if(d<86400) return `${Math.floor(d/3600)}h atrás`;
+        return date.toLocaleDateString('pt-BR');
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => App.init());
+document.getElementById('modalOverlay').addEventListener('click', e => {
+    if (e.target.id === 'modalOverlay') App.closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') App.closeModal(); });
+</script>
+</body>
+</html>
